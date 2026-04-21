@@ -156,7 +156,7 @@ plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
 
-# 图1：站点总借出量柱状图
+# 图1.1：站点总借出量柱状图
 plt.figure(figsize=(14, 8))
 ax = sns.barplot(data=station_total_b, y='站点名称', x='借出量',
                  hue='站点名称',
@@ -170,6 +170,22 @@ for container in ax.containers:
     ax.bar_label(container, fmt='%d', padding=3)
 plt.tight_layout()
 plt.savefig('问题1_总体_站点总借出量柱状图.png', dpi=300, bbox_inches='tight')
+plt.close()
+
+# 图1.2：站点总借出量柱状图（站点编号版）
+plt.figure(figsize=(14, 8))
+ax = sns.barplot(data=station_total_b, y='站点编号', x='借出量',
+                 hue='站点编号',
+                 palette='YlOrRd_r',
+                 legend=False,
+                 dodge=False)
+plt.title('各站点7天总借出量（站点编号版）')
+plt.xlabel('总借出量')
+plt.ylabel('站点编号')
+for container in ax.containers:
+    ax.bar_label(container, fmt='%d', padding=3)
+plt.tight_layout()
+plt.savefig('问题1_总体_站点总借出量柱状图（站点编号版）.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图2.1：各站点每小时平均借出量热力图
