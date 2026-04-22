@@ -63,17 +63,23 @@ def add_lag_features(df):
     return df
 
 
-
+from sklearn.cluster import KMeans
 
 def add_spatial_features(df):
-    mean_lon = df['lon'].mean()
-    mean_lat = df['lat'].mean()
+    # 只对站点做一次聚类（避免重复计算）
+    station_coords = df[['station_id','lon','lat']].drop_duplicates()
 
-    df['lon_diff'] = df['lon'] - mean_lon
-    df['lat_diff'] = df['lat'] - mean_lat
+    kmeans = KMeans(n_clusters=3, random_state=42)
+    station_coords['zone'] = kmeans.fit_predict(station_coords[['lon','lat']])
+
+    # 合并回原数据
+    df = df.merge(station_coords[['station_id','zone']], on='station_id', how='left')
+
+    # one-hot编码
+    zone_dummies = pd.get_dummies(df['zone'], prefix='zone')
+    df = pd.concat([df, zone_dummies], axis=1)
 
     return df
-
 
 def build_baseline(df):
     baseline = df.groupby(['station_id','hour'])[['borrow','return']].mean().reset_index()

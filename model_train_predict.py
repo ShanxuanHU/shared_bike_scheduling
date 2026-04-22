@@ -9,7 +9,7 @@ def train_model(train_df, target):
         'borrow_lag_1','borrow_lag_2','borrow_lag_3','borrow_lag_24',
         'return_lag_1','return_lag_2','return_lag_3','return_lag_24',
         'borrow_roll3','return_roll3',
-        'lon_diff','lat_diff'
+        'zone_0','zone_1','zone_2'
     ]
 
     X = train_df[features]
