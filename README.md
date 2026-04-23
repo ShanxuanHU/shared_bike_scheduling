@@ -2,7 +2,7 @@
 
 ## 题目说明
 
-本项目围绕共享单车站点运行数据，完成以下 3 个问题：
+本项目围绕共享单车站点运行数据，完成以下 4 个问题：
 
 ### 问题1：描述性分析
 
@@ -43,6 +43,13 @@
 - 源站发车当小时立即扣减库存；
 - 目标站在 `t + t_ij` 时刻入库。
 
+### 问题4：模型推广与灵敏度分析
+
+在问题3的基础上，完成两部分扩展：
+
+1. 自行新增 5 个站点，构造扩展后的 35 站网络，并重新运行调度模型；
+2. 对运输成本、搬运成本、满桩惩罚系数、空桩惩罚系数做敏感性分析。
+
 ---
 
 ## 当前目录结构
@@ -51,21 +58,23 @@
 shared_bike_scheduling/
 ├─ README.md
 ├─ .gitignore
-├─ main.py
+├─ problem2_main.py
 ├─ problem1_eda.py
 ├─ problem2_workday_predict.py
+├─ problem2_data_preprocess.py
+├─ problem2_model_train_predict.py
 ├─ problem3_config.py
 ├─ problem3_simulation.py
-├─ problem3_solution.py
-├─ model_train_predict.py
-├─ data_preprocess.py
+├─ problem3_main.py
+├─ problem4_solution.py
 ├─ 附件1_站点基础信息.csv
 ├─ 附件2_每小时借还记录.csv
 ├─ 附件3_调度成本参数.csv
 ├─ outputs/
 │  ├─ problem1/
 │  ├─ problem2/
-│  └─ problem3/
+│  ├─ problem3/
+│  └─ problem4/
 └─ docs/
    └─ archive/
 ```
@@ -92,7 +101,7 @@ python problem1_eda.py
 ### 问题2
 
 ```bash
-python main.py
+python problem2_main.py
 ```
 
 输出位置：
@@ -111,10 +120,18 @@ python problem2_workday_predict.py
 ### 问题3
 
 ```bash
-python problem3_solution.py
+python problem3_main.py
 ```
 
 输出位置：`outputs/problem3/`
+
+### 问题4
+
+```bash
+python problem4_solution.py
+```
+
+输出位置：`outputs/problem4/`
 
 ---
 
@@ -159,15 +176,15 @@ python problem3_solution.py
 
 ## 代码说明
 
-### `data_preprocess.py`
+### `problem2_data_preprocess.py`
 
 负责问题2的数据读取、时间特征、空间特征、前一日滞后特征，以及“仅用训练集构造基线”的数据集划分。
 
-### `model_train_predict.py`
+### `problem2_model_train_predict.py`
 
 负责 XGBoost 训练、预测与误差评估。
 
-### `main.py`
+### `problem2_main.py`
 
 负责问题2主流程，默认测试日为 `2025-04-13`。
 
@@ -183,9 +200,13 @@ python problem3_solution.py
 
 负责借还仿真、调度执行、惩罚计算与指标统计。
 
-### `problem3_solution.py`
+### `problem3_main.py`
 
 负责问题3主流程、无调度 / 有调度对比，以及结果落盘。
+
+### `problem4_solution.py`
+
+负责问题4的新增站点方案构造、35站扩展网络仿真，以及成本参数敏感性分析。
 
 ---
 

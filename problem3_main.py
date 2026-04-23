@@ -10,7 +10,7 @@
 使用的文件：
 - problem3_config.py (配置加载)
 - problem3_simulation.py (模拟器)
-- problem3_solution.py (主程序)
+- problem3_main.py (主程序)
 """
 
 import numpy as np

@@ -157,16 +157,19 @@ def get_station_mapping(stations):
     return station_to_idx, idx_to_station
 
 
-def get_config():
+def build_config(stations, params, output_dir=None):
     """
-    返回完整配置。
+    基于给定站点表和参数字典构造配置。
     """
-    stations, params = load_data()
+    stations = stations.copy().reset_index(drop=True)
+    stations["总桩位数"] = pd.to_numeric(stations["总桩位数"], errors="coerce")
+    stations["当前库存量"] = pd.to_numeric(stations["当前库存量"], errors="coerce")
+
     speed = float(params.get("调度车速", 40))
     dist_matrix, time_matrix = compute_distance_matrix(stations, speed)
     station_to_idx, idx_to_station = get_station_mapping(stations)
 
-    config = {
+    return {
         "stations": stations,
         "n_stations": len(stations),
         "station_to_idx": station_to_idx,
@@ -186,7 +189,13 @@ def get_config():
         "time_window_end": 22,
         "future_horizon": 2,
         "future_lambda": 0.5,
-        "output_dir": PROBLEM3_OUTPUT_DIR,
+        "output_dir": output_dir or PROBLEM3_OUTPUT_DIR,
     }
 
-    return config
+
+def get_config():
+    """
+    返回完整配置。
+    """
+    stations, params = load_data()
+    return build_config(stations, params, output_dir=PROBLEM3_OUTPUT_DIR)

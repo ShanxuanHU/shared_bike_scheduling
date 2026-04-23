@@ -118,6 +118,68 @@ class StationSimulator:
         deficit_enhanced = deficit + self.config["future_lambda"] * future_deficit
         return surplus, deficit_enhanced
 
+    def project_local_penalty(self, s_temp, t, from_idx, to_idx, transfer_amount, arrival_hour):
+        """
+        在两个相关站点上做局部滚动仿真，估计未来惩罚成本。
+        """
+        tracked_indices = [from_idx, to_idx]
+        inventory = {
+            from_idx: float(s_temp[from_idx] - transfer_amount),
+            to_idx: float(s_temp[to_idx]),
+        }
+
+        if arrival_hour == t:
+            inventory[to_idx] += transfer_amount
+
+        total_penalty = 0.0
+        for hour in range(t, 24):
+            if hour > t:
+                for idx in tracked_indices:
+                    inventory[idx] += float(self.pending_arrivals[hour, idx])
+                if hour == arrival_hour:
+                    inventory[to_idx] += transfer_amount
+
+                for idx in tracked_indices:
+                    borrow_demand = float(self.D_out[idx, hour])
+                    borrow_actual = min(inventory[idx], borrow_demand)
+                    inventory[idx] -= borrow_actual
+
+                    return_demand = float(self.D_in[idx, hour])
+                    available_space = max(0.0, float(self.config["capacity"][idx]) - inventory[idx])
+                    return_actual = min(available_space, return_demand)
+                    inventory[idx] += return_actual
+
+            for idx in tracked_indices:
+                over = max(0.0, inventory[idx] - float(self.config["capacity"][idx]))
+                under = max(0.0, float(self.config["safe_inventory"][idx]) - inventory[idx])
+                total_penalty += float(self.config["alpha"]) * over
+                total_penalty += float(self.config["beta"]) * under
+
+        return total_penalty
+
+    def estimate_transfer_net_gain(self, s_temp, t, from_idx, to_idx, amount):
+        """
+        估计一次调度在剩余时段内的净收益：
+        净收益 = 惩罚下降 - 运输成本
+        """
+        delay = int(self.config["time_matrix"][from_idx, to_idx])
+        arrival_hour = t + delay
+        if arrival_hour >= 24:
+            return float("-inf"), delay, arrival_hour
+
+        no_transfer_penalty = self.project_local_penalty(
+            s_temp, t, from_idx, to_idx, transfer_amount=0, arrival_hour=arrival_hour
+        )
+        with_transfer_penalty = self.project_local_penalty(
+            s_temp, t, from_idx, to_idx, transfer_amount=amount, arrival_hour=arrival_hour
+        )
+
+        dist = self.config["dist_matrix"][from_idx, to_idx]
+        trip_cost = self.config["c_km"] * dist + self.config["c_move"] * amount
+        penalty_reduction = no_transfer_penalty - with_transfer_penalty
+        net_gain = penalty_reduction - trip_cost
+        return net_gain, delay, arrival_hour
+
     def greedy_schedule_enhanced(self, s_temp, t, remaining_capacity):
         """
         增强贪心调度算法。
@@ -138,54 +200,53 @@ class StationSimulator:
         cap_remaining = remaining_capacity
 
         while cap_remaining > 0 and surplus_stations and deficit_stations:
-            best_score = -1
-            best_i, best_j = None, None
+            best_gain = float("-inf")
+            best_plan = None
 
             for i, s_val in surplus_stations:
                 for j, d_val in deficit_stations:
                     if i == j:
                         continue
-                    dist = self.config["dist_matrix"][i, j]
-                    delay = self.config["time_matrix"][i, j]
-                    arrival_hour = t + delay
-
-                    if arrival_hour >= 24:
+                    max_transfer = int(np.floor(min(s_val, d_val, cap_remaining)))
+                    if max_transfer <= 0:
                         continue
 
-                    if dist > 0:
-                        score = (d_val * s_val) / (dist + 1e-6)
-                    else:
-                        score = d_val * s_val + 1e6
+                    for amount in range(1, max_transfer + 1):
+                        net_gain, delay, arrival_hour = self.estimate_transfer_net_gain(
+                            s_temp, t, i, j, amount
+                        )
+                        if net_gain > best_gain:
+                            best_gain = net_gain
+                            best_plan = {
+                                "from": i,
+                                "to": j,
+                                "amount": amount,
+                                "travel_time": delay,
+                                "arrival_hour": arrival_hour,
+                                "net_gain": net_gain,
+                            }
 
-                    if score > best_score:
-                        best_score = score
-                        best_i, best_j = i, j
-
-            if best_i is None:
+            if best_plan is None or best_gain <= 0:
                 break
 
-            max_transfer = int(np.floor(min(surplus[best_i], deficit[best_j], cap_remaining)))
-            if max_transfer <= 0:
-                break
-
-            delay = int(self.config["time_matrix"][best_i, best_j])
             schedules.append(
                 {
-                    "from": best_i,
-                    "to": best_j,
-                    "amount": max_transfer,
+                    "from": best_plan["from"],
+                    "to": best_plan["to"],
+                    "amount": best_plan["amount"],
                     "depart_hour": t,
-                    "travel_time": delay,
-                    "arrival_hour": t + delay,
+                    "travel_time": best_plan["travel_time"],
+                    "arrival_hour": best_plan["arrival_hour"],
+                    "net_gain": round(best_plan["net_gain"], 2),
                 }
             )
 
-            surplus[best_i] -= max_transfer
-            deficit[best_j] -= max_transfer
-            cap_remaining -= max_transfer
+            surplus[best_plan["from"]] -= best_plan["amount"]
+            deficit[best_plan["to"]] -= best_plan["amount"]
+            cap_remaining -= best_plan["amount"]
 
-            dist = self.config["dist_matrix"][best_i, best_j]
-            trip_cost = self.config["c_km"] * dist + self.config["c_move"] * max_transfer
+            dist = self.config["dist_matrix"][best_plan["from"], best_plan["to"]]
+            trip_cost = self.config["c_km"] * dist + self.config["c_move"] * best_plan["amount"]
             total_cost += trip_cost
 
             surplus_stations = [(i, surplus[i]) for i in range(self.n) if surplus[i] > 1e-6]
