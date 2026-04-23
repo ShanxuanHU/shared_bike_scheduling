@@ -220,8 +220,8 @@ plt.close()
 plt.figure(figsize=(10, 8))
 plt.scatter(station_total_b['经度'], station_total_b['纬度'], s=station_total_b['借出量']
             * 0.5, c=station_total_b['借出量'], cmap='YlOrRd', alpha=0.7)
-for i, row in station_total_b.iterrows():
-    plt.text(row['经度']+0.001, row['纬度'], row['站点名称'], fontsize=8)
+for _, row in station_total_b.iterrows():
+    plt.text(row['经度'] + 0.001, row['纬度'], row['站点名称'], fontsize=8)
 plt.title('各站点借出量空间分布（点的大小及颜色深浅表示借出量）')
 plt.xlabel('经度')
 plt.ylabel('纬度')
@@ -300,6 +300,84 @@ plt.xticks(range(0, 24, 2))  # 每2小时显示一个刻度
 plt.tight_layout()
 plt.savefig(OUTPUT_DIR / '问题1_Bottom5站点_每小时归还量曲线.png', dpi=300, bbox_inches='tight')
 plt.close()
+
+# 图4.5：Top5与Bottom5站点分布图
+plt.figure(figsize=(10, 8))
+
+top5_station_ids = set(top5_stations_b)
+bottom5_station_ids = set(bottom5_stations_b)
+normal_stations = station_summary[
+    ~station_summary['站点编号'].isin(top5_station_ids | bottom5_station_ids)
+]
+top5_station_points = station_summary[station_summary['站点编号'].isin(top5_station_ids)]
+bottom5_station_points = station_summary[station_summary['站点编号'].isin(bottom5_station_ids)]
+
+plt.scatter(
+    normal_stations['经度'],
+    normal_stations['纬度'],
+    s=80,
+    c='lightgray',
+    edgecolors='gray',
+    linewidth=0.6,
+    alpha=0.85,
+    label='其他站点'
+)
+plt.scatter(
+    top5_station_points['经度'],
+    top5_station_points['纬度'],
+    s=180,
+    c='#E76F51',
+    edgecolors='black',
+    linewidth=0.8,
+    alpha=0.95,
+    label='Top5站点'
+)
+plt.scatter(
+    bottom5_station_points['经度'],
+    bottom5_station_points['纬度'],
+    s=180,
+    c='#2A9D8F',
+    edgecolors='black',
+    linewidth=0.8,
+    alpha=0.95,
+    label='Bottom5站点'
+)
+
+label_x_offset = 0.0025
+label_y_offset = 0.0008
+for _, row in station_summary.iterrows():
+    if row['站点编号'] in top5_station_ids or row['站点编号'] in bottom5_station_ids:
+        plt.text(
+            row['经度'] + label_x_offset,
+            row['纬度'] + label_y_offset,
+            row['站点名称'],
+            fontsize=8,
+            fontweight='bold'
+        )
+    else:
+        plt.text(
+            row['经度'] + label_x_offset,
+            row['纬度'] + label_y_offset,
+            row['站点名称'],
+            fontsize=7.5,
+            alpha=0.82
+        )
+
+plt.title('Top5与Bottom5站点空间分布图')
+plt.xlabel('经度')
+plt.ylabel('纬度')
+plt.grid(True, alpha=0.3, linestyle='--')
+plt.legend(
+    loc='upper right',
+    borderpad=0.9,
+    labelspacing=1.0,
+    handletextpad=0.8,
+    markerscale=0.85
+)
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / '问题1_Top5与Bottom5站点分布图.png', dpi=300, bbox_inches='tight')
+plt.close()
+
 
 # 图5：工作日与休息日借还时段对比图
 plt.figure(figsize=(12, 6))
