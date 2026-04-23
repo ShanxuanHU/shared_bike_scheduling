@@ -105,34 +105,35 @@ def compute_distance_matrix(stations):
     return dist_matrix, time_matrix
 
 
-def load_demand_predictions(file_path='predictions_2025-04-13.csv'):
+def load_demand_predictions(file_path=None):
     """
-    加载问题2的预测结果
-    如果文件不存在，则使用附件2中2025-04-13的实际数据作为替代
+    加载问题3的预测需求数据
+
+    优先级：
+    1. 如果指定file_path，使用指定文件
+    2. 否则自动寻找 predictions_*.csv (工作日预测文件)
+    3. 如果没有，使用附件2的实际数据（2025-04-07）
     """
-    try:
+    import os
+    import glob
+
+    # 如果指定了文件路径
+    if file_path and os.path.exists(file_path):
         pred_df = pd.read_csv(file_path)
         pred_df = clean_columns(pred_df)
-        print(f"成功加载预测文件: {file_path}")
+        print(f"  ✓ 成功加载指定预测文件: {file_path}")
         return pred_df
-    except FileNotFoundError:
-        print(f"未找到预测文件 {file_path}，使用实际数据作为需求输入")
-        # 加载附件2中的实际数据作为需求
-        df = pd.read_csv('附件2_每小时借还记录.csv')
-        df = clean_columns(df)
 
-        # 只取测试日 (2025-04-13)
-        test_data = df[df['日期'] == '2025-04-13'].copy()
+    # 自动寻找 predictions_*.csv 文件（工作日预测）
+    pred_files = glob.glob('predictions_*.csv')
+    if pred_files:
+        file_path = pred_files[0]  # 使用找到的第一个预测文件
+        print(f"  ✓ 找到预测文件: {file_path}")
+        pred_df = pd.read_csv(file_path)
+        pred_df = clean_columns(pred_df)
 
-        if len(test_data) == 0:
-            print("  警告: 未找到2025-04-13的数据，使用2025-04-07的数据代替")
-            test_data = df[df['日期'] == '2025-04-07'].copy()
-
-        # 确保列名正确 - 使用原始列名
-        test_data = test_data[['日期', '小时(0-23)', '站点编号', '借出量', '归还量']].copy()
-
-        # 重命名为统一格式
-        test_data = test_data.rename(columns={
+        # 重命名列名以匹配 parse_demand 的期望
+        pred_df = pred_df.rename(columns={
             '日期': 'date',
             '小时(0-23)': 'hour',
             '站点编号': '站点编号',
@@ -140,20 +141,48 @@ def load_demand_predictions(file_path='predictions_2025-04-13.csv'):
             '归还量': '归还量'
         })
 
-        # 确保数值列为数字类型
-        test_data['hour'] = pd.to_numeric(
-            test_data['hour'], errors='coerce').astype(int)
-        test_data['借出量'] = pd.to_numeric(
-            test_data['借出量'], errors='coerce').fillna(0)
-        test_data['归还量'] = pd.to_numeric(
-            test_data['归还量'], errors='coerce').fillna(0)
+        print(f"    - 数据行数: {len(pred_df)}")
+        print(f"    - 覆盖站点: {pred_df['站点编号'].nunique()}")
+        return pred_df
 
-        print(f"  已加载 {len(test_data)} 条需求记录")
-        print(
-            f"  时间跨度: {test_data['hour'].min():.0f}-{test_data['hour'].max():.0f} 小时")
-        print(f"  站点数: {test_data['站点编号'].nunique()} 个")
+    # 如果没有预测文件，使用实际数据
+    print(f"  未找到预测文件，使用实际数据代替")
+    df = pd.read_csv('附件2_每小时借还记录.csv')
+    df = clean_columns(df)
 
-        return test_data
+    # 选择工作日数据（2025-04-09 周三）
+    test_data = df[df['日期'] == '2025-04-09'].copy()
+
+    if len(test_data) == 0:
+        print("  警告: 未找到2025-04-09的数据，使用2025-04-07的数据代替")
+        test_data = df[df['日期'] == '2025-04-07'].copy()
+
+    # 确保列名正确 - 使用原始列名
+    test_data = test_data[['日期', '小时(0-23)', '站点编号', '借出量', '归还量']].copy()
+
+    # 重命名为统一格式
+    test_data = test_data.rename(columns={
+        '日期': 'date',
+        '小时(0-23)': 'hour',
+        '站点编号': '站点编号',
+        '借出量': '借出量',
+        '归还量': '归还量'
+    })
+
+    # 确保数值列为数字类型
+    test_data['hour'] = pd.to_numeric(
+        test_data['hour'], errors='coerce').astype(int)
+    test_data['借出量'] = pd.to_numeric(
+        test_data['借出量'], errors='coerce').fillna(0)
+    test_data['归还量'] = pd.to_numeric(
+        test_data['归还量'], errors='coerce').fillna(0)
+
+    print(f"  已加载 {len(test_data)} 条需求记录")
+    print(
+        f"  时间跨度: {test_data['hour'].min():.0f}-{test_data['hour'].max():.0f} 小时")
+    print(f"  站点数: {test_data['站点编号'].nunique()} 个")
+
+    return test_data
 
 
 def get_station_mapping(stations):

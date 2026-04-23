@@ -204,9 +204,10 @@ class StationSimulator:
             if best_i is None:
                 break
 
-            # 计算调度量
+            # 计算调度量（必须是正整数）
             max_transfer = min(
-                surplus[best_i], deficit[best_j], int(cap_remaining))
+                surplus[best_i], deficit[best_j], cap_remaining)
+            max_transfer = int(np.floor(max_transfer))  # 向下取整为整数
 
             if max_transfer <= 0:
                 break
