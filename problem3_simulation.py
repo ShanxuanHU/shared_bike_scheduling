@@ -180,7 +180,7 @@ class StationSimulator:
         net_gain = penalty_reduction - trip_cost
         return net_gain, delay, arrival_hour
 
-    def greedy_schedule_enhanced(self, s_temp, t, remaining_capacity):
+    def greedy_schedule_enhanced(self, s_temp, t, truck_capacity):
         """
         增强贪心调度算法。
         返回：调度记录和运输成本。
@@ -197,9 +197,8 @@ class StationSimulator:
 
         schedules = []
         total_cost = 0.0
-        cap_remaining = remaining_capacity
 
-        while cap_remaining > 0 and surplus_stations and deficit_stations:
+        while surplus_stations and deficit_stations:
             best_gain = float("-inf")
             best_plan = None
 
@@ -207,7 +206,7 @@ class StationSimulator:
                 for j, d_val in deficit_stations:
                     if i == j:
                         continue
-                    max_transfer = int(np.floor(min(s_val, d_val, cap_remaining)))
+                    max_transfer = int(np.floor(min(s_val, d_val, truck_capacity)))
                     if max_transfer <= 0:
                         continue
 
@@ -243,8 +242,6 @@ class StationSimulator:
 
             surplus[best_plan["from"]] -= best_plan["amount"]
             deficit[best_plan["to"]] -= best_plan["amount"]
-            cap_remaining -= best_plan["amount"]
-
             dist = self.config["dist_matrix"][best_plan["from"], best_plan["to"]]
             trip_cost = self.config["c_km"] * dist + self.config["c_move"] * best_plan["amount"]
             total_cost += trip_cost

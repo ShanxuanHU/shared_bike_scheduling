@@ -6,6 +6,7 @@
 2. 未来需求预测 - 考虑未来2-3小时的需求缺口
 3. 距离加权优先级 - priority = deficit_j × surplus_i / distance_ij
 4. 离散时延到站 - 调度在 t 时刻发车，在 t + round(d_ij / v) 时刻到达
+5. 单次运力约束 - 每条调度记录最多搬运 15 辆，而非每小时全局合计 15 辆
 
 使用的文件：
 - problem3_config.py (配置加载)
@@ -38,6 +39,7 @@ def main():
         print(
             f"    - 调度时间窗: {config['time_window_start']}:00-{config['time_window_end']}:00")
         print("    - 调度时间: t_ij = round(d_ij / v)")
+        print("    - 运力约束: 单次运输不超过 15 辆")
         print(f"    - 满桩惩罚(α): {config['alpha']:.1f} 元/(桩·小时)")
         print(f"    - 空桩惩罚(β): {config['beta']:.1f} 元/(桩·小时)")
         print(
@@ -78,7 +80,7 @@ def main():
 
     # 4. 有调度模拟（增强贪心算法）
     print("\n[第4步] 模式2: 有调度模拟（增强贪心策略）...")
-    print("  运行中... (包含多轮调度、未来需求、距离加权、离散时延)")
+    print("  运行中... (包含多轮调度、未来需求、距离加权、离散时延、单次运力约束)")
     try:
         simulator_with = StationSimulator(config, demand_df)
         results_with_schedule = simulator_with.run_with_schedule()
@@ -178,8 +180,9 @@ def main():
 调度优化方案采用【增强贪心算法】，具体策略：
 
 1. 多轮调度机制
-   - 每个时间段内根据货车容量进行多轮调度
-   - 循环匹配供给站和需求站，直到容量用完或无可行配对
+   - 每个时间段内允许执行多条调度记录
+   - 每条调度记录单次搬运量不超过 15 辆
+   - 循环匹配供给站和需求站，直到无可行且净收益为正的配对
 
 2. 未来需求预测
    - 考虑当前及未来2-3小时的库存缺口
@@ -194,6 +197,11 @@ def main():
    - 调度车辆在出发时刻立即从源站扣减
    - 目标站在 arrival_hour = depart_hour + round(distance_ij / v) 时入库
    - 不再采用瞬时调度近似
+
+5. 空桩惩罚口径
+   - 空桩惩罚按安全库存缺口计算
+   - 公式: beta × max(0, 安全库存 - 当前库存)
+   - 与借车失败量 max(0, 借车需求 - 当前库存) 明确区分
 
 【最终效果】
   成本节省: {cost_saving:,.0f} 元 ({cost_saving/total_cost_no*100:.1f}%)
