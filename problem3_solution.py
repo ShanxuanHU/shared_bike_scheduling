@@ -5,16 +5,16 @@
 1. 多轮调度 - 每小时内根据容量进行多次调度循环
 2. 未来需求预测 - 考虑未来2-3小时的需求缺口
 3. 距离加权优先级 - priority = deficit_j × surplus_i / distance_ij
+4. 离散时延到站 - 调度在 t 时刻发车，在 t + round(d_ij) 时刻到达
 
 使用的文件：
 - problem3_config.py (配置加载)
 - problem3_simulation.py (模拟器)
-- problem3_main.py (主程序)
+- problem3_solution.py (主程序)
 """
 
 import numpy as np
 import pandas as pd
-import sys
 
 
 def main():
@@ -32,30 +32,33 @@ def main():
     print("\n[第1步] 加载配置和基础数据...")
     try:
         config = get_config()
-        print(f"  ✓ 成功加载配置")
+        print(f"  [OK] 成功加载配置")
         print(f"    - 站点总数: {config['n_stations']} 个")
         print(f"    - 货车最大容量: {config['truck_capacity']} 辆/次")
         print(
             f"    - 调度时间窗: {config['time_window_start']}:00-{config['time_window_end']}:00")
+        print("    - 调度时间: t_ij = round(d_ij)")
         print(f"    - 满桩惩罚(α): {config['alpha']:.1f} 元/(桩·小时)")
         print(f"    - 空桩惩罚(β): {config['beta']:.1f} 元/(桩·小时)")
         print(
             f"    - 运输成本: {config['c_km']:.1f} 元/公里 + {config['c_move']:.1f} 元/辆")
     except Exception as e:
-        print(f"  ✗ 加载配置失败: {e}")
+        print(f"  [ERROR] 加载配置失败: {e}")
         return
+
+    config['output_dir'].mkdir(parents=True, exist_ok=True)
 
     # 2. 加载需求数据
     print("\n[第2步] 加载需求预测数据...")
     try:
         demand_df = load_demand_predictions()
-        print(f"  ✓ 成功加载需求数据")
+        print(f"  [OK] 成功加载需求数据")
         print(f"    - 数据行数: {len(demand_df)}")
         print(f"    - 覆盖站点: {demand_df['站点编号'].nunique()} 个")
         print(
             f"    - 时间跨度: {demand_df['hour'].min():.0f}-{demand_df['hour'].max():.0f} 小时")
     except Exception as e:
-        print(f"  ✗ 加载需求数据失败: {e}")
+        print(f"  [ERROR] 加载需求数据失败: {e}")
         return
 
     # 3. 无调度模拟
@@ -63,23 +66,23 @@ def main():
     try:
         simulator_no = StationSimulator(config, demand_df)
         results_no_schedule = simulator_no.run_no_schedule()
-        print(f"  ✓ 无调度模拟完成")
+        print(f"  [OK] 无调度模拟完成")
         print(f"    - 日总费用: {results_no_schedule['total_cost']:,.2f} 元")
         print(f"    - 惩罚成本: {results_no_schedule['total_penalty']:,.2f} 元")
         print(f"    - 借车失败: {results_no_schedule['total_fail_borrow']:.0f} 次")
         print(f"    - 还车失败: {results_no_schedule['total_fail_return']:.0f} 次")
         print(f"    - 用户需求满足率: {results_no_schedule['success_rate']:.2f}%")
     except Exception as e:
-        print(f"  ✗ 无调度模拟失败: {e}")
+        print(f"  [ERROR] 无调度模拟失败: {e}")
         return
 
     # 4. 有调度模拟（增强贪心算法）
     print("\n[第4步] 模式2: 有调度模拟（增强贪心策略）...")
-    print("  运行中... (包含多轮调度、未来需求、距离加权)")
+    print("  运行中... (包含多轮调度、未来需求、距离加权、离散时延)")
     try:
         simulator_with = StationSimulator(config, demand_df)
         results_with_schedule = simulator_with.run_with_schedule()
-        print(f"  ✓ 有调度模拟完成")
+        print(f"  [OK] 有调度模拟完成")
         print(f"    - 日总费用: {results_with_schedule['total_cost']:,.2f} 元")
         print(f"    - 惩罚成本: {results_with_schedule['total_penalty']:,.2f} 元")
         print(
@@ -90,7 +93,7 @@ def main():
             f"    - 还车失败: {results_with_schedule['total_fail_return']:.0f} 次")
         print(f"    - 用户需求满足率: {results_with_schedule['success_rate']:.2f}%")
     except Exception as e:
-        print(f"  ✗ 有调度模拟失败: {e}")
+        print(f"  [ERROR] 有调度模拟失败: {e}")
         return
 
     # 5. 结果对比分析
@@ -163,38 +166,43 @@ def main():
     print("\n[第6步] 保存结果到文件...")
     try:
         save_results(results_no_schedule, results_with_schedule, config)
-        print(f"  ✓ 结果已保存")
+        print(f"  [OK] 结果已保存")
     except Exception as e:
-        print(f"  ✗ 保存结果失败: {e}")
+        print(f"  [ERROR] 保存结果失败: {e}")
 
     # 8. 最终总结
     print("\n" + "="*80)
     print("【优化方案总结】")
     print("="*80)
-    print(f""""
+    print(f"""
 调度优化方案采用【增强贪心算法】，具体策略：
 
-1️⃣  多轮调度机制
+1. 多轮调度机制
    - 每个时间段内根据货车容量进行多轮调度
    - 循环匹配供给站和需求站，直到容量用完或无可行配对
 
-2️⃣  未来需求预测
+2. 未来需求预测
    - 考虑当前及未来2-3小时的库存缺口
    - 公式: deficit = max(0, R_i - S_i,t) + λ·Σ(k=1~2)max(0, R_i - S_i,t+k)
    - λ = 0.5（未来权重）
 
-3️⃣  距离加权优先级
+3. 距离加权优先级
    - 优先级分数: priority_ij = deficit_j × surplus_i / distance_ij
    - 贪心选择最高优先级的站点对进行调度
 
+4. 离散时延到站
+   - 调度车辆在出发时刻立即从源站扣减
+   - 目标站在 arrival_hour = depart_hour + round(distance_ij) 时入库
+   - 不再采用瞬时调度近似
+
 【最终效果】
-  💰 日均费用节省: {cost_saving:,.0f} 元 ({cost_saving/total_cost_no*100:.1f}%)
-  📊 需求满足率提升: {rate_improvement:.2f} 百分点
-  🚗 运输成本: {transport_cost:,.0f} 元/天
+  成本节省: {cost_saving:,.0f} 元 ({cost_saving/total_cost_no*100:.1f}%)
+  需求满足率提升: {rate_improvement:.2f} 百分点
+  运输成本: {transport_cost:,.0f} 元/天
   """)
 
     print("="*80)
-    print("✅ 问题3 第(2)小题求解完成！")
+    print("问题3 第(2)小题求解完成。")
     print("="*80)
 
 
@@ -210,7 +218,12 @@ def save_results(results_no, results_with, config):
     """
     # 1. 对比汇总表（仅包括题目要求的指标）
     # 直接写入 CSV 文件，确保正确的数据类型格式
-    with open('problem3_comparison_summary.csv', 'w', encoding='utf-8-sig') as f:
+    output_dir = config['output_dir']
+    summary_path = output_dir / 'problem3_comparison_summary.csv'
+    schedules_path = output_dir / 'problem3_schedules_detail.csv'
+    inventory_path = output_dir / 'problem3_inventory_detail.csv'
+
+    with open(summary_path, 'w', encoding='utf-8-sig') as f:
         f.write('指标,无调度,有调度\n')
         f.write(
             f'总费用(元),{results_no["total_cost"]:.2f},{results_with["total_cost"]:.2f}\n')
@@ -223,7 +236,7 @@ def save_results(results_no, results_with, config):
         f.write(
             f'用户无法还车(次),{int(results_no["total_fail_return"])},{int(results_with["total_fail_return"])}\n')
 
-    print(f"    - 已保存: problem3_comparison_summary.csv")
+    print(f"    - 已保存: {summary_path}")
 
     # 2. 调度方案详情
     schedules_data = []
@@ -233,14 +246,16 @@ def save_results(results_no, results_with, config):
                 '时刻': f"{hour:02d}:00",
                 '出发站': config['idx_to_station'][sch['from']],
                 '目标站': config['idx_to_station'][sch['to']],
-                '调度数量(辆)': sch['amount']
+                '调度数量(辆)': sch['amount'],
+                '运输时长(小时)': sch['travel_time'],
+                '到达时刻': f"{sch['arrival_hour']:02d}:00"
             })
 
     if schedules_data:
         schedules_df = pd.DataFrame(schedules_data)
-        schedules_df.to_csv('problem3_schedules_detail.csv',
+        schedules_df.to_csv(schedules_path,
                             index=False, encoding='utf-8-sig')
-        print(f"    - 已保存: problem3_schedules_detail.csv")
+        print(f"    - 已保存: {schedules_path}")
 
     # 3. 每小时库存对比
     inventory_data = []
@@ -255,9 +270,9 @@ def save_results(results_no, results_with, config):
             })
 
     inventory_df = pd.DataFrame(inventory_data)
-    inventory_df.to_csv('problem3_inventory_detail.csv',
+    inventory_df.to_csv(inventory_path,
                         index=False, encoding='utf-8-sig')
-    print(f"    - 已保存: problem3_inventory_detail.csv")
+    print(f"    - 已保存: {inventory_path}")
 
 
 if __name__ == "__main__":

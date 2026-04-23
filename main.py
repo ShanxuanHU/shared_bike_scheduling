@@ -1,117 +1,86 @@
-import pandas as pd
+from pathlib import Path
+
 import matplotlib.pyplot as plt
-from data_preprocess import preprocess_all
-from model_train_predict import train_model, predict, evaluate
 
-# ===== 数据 =====
-df = preprocess_all()
+from data_preprocess import BASE_DIR, FORECAST_FEATURES, build_model_datasets
+from model_train_predict import evaluate, predict, train_model
 
-# ===== 划分训练/测试 =====
-train_df = df[df['date'] < '2025-04-13']
-test_df = df[df['date'] == '2025-04-13']
 
-# ===== 模型训练 =====
-model_borrow, features = train_model(train_df, 'borrow_res')
-model_return, _ = train_model(train_df, 'return_res')
+TARGET_DATE = "2025-04-13"
+OUTPUT_DIR = BASE_DIR / "outputs" / "problem2"
+FIGURE_DIR = OUTPUT_DIR / "figures"
 
-# ===== 预测 =====
-test_df['borrow_pred'] = predict(test_df, model_borrow, features, 'borrow_base')
-test_df['return_pred'] = predict(test_df, model_return, features, 'return_base')
 
-# ===== 评估 =====
-mae_b, rmse_b, mape_b = evaluate(test_df['borrow'], test_df['borrow_pred'])
-mae_r, rmse_r, mape_r = evaluate(test_df['return'], test_df['return_pred'])
+def main():
+    train_df, test_df, features = build_model_datasets(TARGET_DATE)
 
-print("Borrow:", mae_b, rmse_b, mape_b)
-print("Return:", mae_r, rmse_r, mape_r)
+    model_borrow, _ = train_model(train_df, "borrow_res", features)
+    model_return, _ = train_model(train_df, "return_res", features)
 
-# ===== 绘图（改进版） =====
-import os
+    test_df = test_df.copy()
+    test_df["borrow_pred"] = predict(test_df, model_borrow, features, "borrow_base").clip(lower=0)
+    test_df["return_pred"] = predict(test_df, model_return, features, "return_base").clip(lower=0)
 
-# 创建保存目录
-os.makedirs("figures", exist_ok=True)
+    mae_b, rmse_b, mape_b = evaluate(test_df["borrow"], test_df["borrow_pred"])
+    mae_r, rmse_r, mape_r = evaluate(test_df["return"], test_df["return_pred"])
 
-stations = ['S002','S012','S023']
+    print(f"Target date: {TARGET_DATE}")
+    print(f"Borrow: MAE={mae_b:.3f}, RMSE={rmse_b:.3f}, MAPE={mape_b:.3%}")
+    print(f"Return: MAE={mae_r:.3f}, RMSE={rmse_r:.3f}, MAPE={mape_r:.3%}")
+    print(f"Features: {FORECAST_FEATURES}")
 
-for sid in stations:
-    tmp = test_df[test_df['station_id']==sid]
+    FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 
-    # ===== Borrow 图 =====
-    plt.figure(figsize=(10,5))
+    for sid in ["S002", "S012", "S023"]:
+        tmp = test_df[test_df["station_id"] == sid].copy()
+        if tmp.empty:
+            continue
 
-    # 灰色背景参考线（横线）
-    for y in range(int(tmp['borrow'].min()), int(tmp['borrow'].max())+5, 5):
-        plt.axhline(y=y, linestyle='--', linewidth=0.5, color='gray', alpha=0.3)
+        save_series_plot(
+            tmp["hour"],
+            tmp["borrow"],
+            tmp["borrow_pred"],
+            f"Station {sid} - Borrow Demand",
+            "Borrow Volume",
+            FIGURE_DIR / f"{sid}_borrow.png",
+        )
+        save_series_plot(
+            tmp["hour"],
+            tmp["return"],
+            tmp["return_pred"],
+            f"Station {sid} - Return Demand",
+            "Return Volume",
+            FIGURE_DIR / f"{sid}_return.png",
+        )
 
-    # 真实值
+
+def save_series_plot(hours, actual, predicted, title, y_label, output_path):
+    plt.figure(figsize=(10, 5))
+
+    for y in range(int(actual.min()), int(actual.max()) + 5, 5):
+        plt.axhline(y=y, linestyle="--", linewidth=0.5, color="gray", alpha=0.3)
+
+    plt.plot(hours, actual, marker="o", markersize=5, linewidth=2, label="Actual")
     plt.plot(
-        tmp['hour'],
-        tmp['borrow'],
-        marker='o',
+        hours,
+        predicted,
+        marker="s",
         markersize=5,
         linewidth=2,
-        label='Actual'
+        linestyle="--",
+        label="Predicted",
     )
 
-    # 预测值
-    plt.plot(
-        tmp['hour'],
-        tmp['borrow_pred'],
-        marker='s',
-        markersize=5,
-        linewidth=2,
-        linestyle='--',
-        label='Predicted'
-    )
-
-    plt.title(f'Station {sid} - Borrow Demand', fontsize=14)
-    plt.xlabel('Hour of Day')
-    plt.ylabel('Borrow Volume')
-
-    plt.xticks(range(0,24,2))
+    plt.title(title, fontsize=14)
+    plt.xlabel("Hour of Day")
+    plt.ylabel(y_label)
+    plt.xticks(range(0, 24, 2))
     plt.grid(False)
     plt.legend()
-
     plt.tight_layout()
-
-    # 保存图片
-    plt.savefig(f'figures/{sid}_borrow.png', dpi=300)
+    plt.savefig(output_path, dpi=300)
     plt.close()
 
-    # ===== Return 图 =====
-    plt.figure(figsize=(10,5))
 
-    for y in range(int(tmp['return'].min()), int(tmp['return'].max())+5, 5):
-        plt.axhline(y=y, linestyle='--', linewidth=0.5, color='gray', alpha=0.3)
-
-    plt.plot(
-        tmp['hour'],
-        tmp['return'],
-        marker='o',
-        markersize=5,
-        linewidth=2,
-        label='Actual'
-    )
-
-    plt.plot(
-        tmp['hour'],
-        tmp['return_pred'],
-        marker='s',
-        markersize=5,
-        linewidth=2,
-        linestyle='--',
-        label='Predicted'
-    )
-
-    plt.title(f'Station {sid} - Return Demand', fontsize=14)
-    plt.xlabel('Hour of Day')
-    plt.ylabel('Return Volume')
-
-    plt.xticks(range(0,24,2))
-    plt.grid(False)
-    plt.legend()
-
-    plt.tight_layout()
-
-    plt.savefig(f'figures/{sid}_return.png', dpi=300)
-    plt.close()
+if __name__ == "__main__":
+    main()

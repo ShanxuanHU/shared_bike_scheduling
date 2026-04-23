@@ -2,6 +2,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parent
+OUTPUT_DIR = BASE_DIR / 'outputs' / 'problem1'
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # 数据加载（附件3好像用不上）
 stations = pd.read_csv('附件1_站点基础信息.csv', encoding='utf-8')
@@ -95,10 +101,12 @@ type_work = weekday_df.groupby('站点类型')['借出量'].mean()
 type_weekend = weekend_df.groupby('站点类型')['借出量'].mean()
 
 # 8. 日均借出量（工作日与休息日）- 用于空间分布图
+weekday_days = max(weekday_df['日期'].nunique(), 1)
+weekend_days = max(weekend_df['日期'].nunique(), 1)
 weekday_station_avg = (weekday_df.groupby(['站点编号', '站点名称', '经度', '纬度'])['借出量']
-                       .sum() / 5).reset_index(name='日均借出量')  # 假设5个工作日
+                       .sum() / weekday_days).reset_index(name='日均借出量')
 weekend_station_avg = (weekend_df.groupby(['站点编号', '站点名称', '经度', '纬度'])['借出量']
-                       .sum() / 2).reset_index(name='日均借出量')  # 假设2个休息日
+                       .sum() / weekend_days).reset_index(name='日均借出量')
 
 # 9. 工作日/休息日的合并空间差异
 merged_station_diff = weekday_station_avg.merge(weekend_station_avg,
@@ -169,7 +177,7 @@ plt.ylabel('站点')
 for container in ax.containers:
     ax.bar_label(container, fmt='%d', padding=3)
 plt.tight_layout()
-plt.savefig('问题1_总体_站点总借出量柱状图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_总体_站点总借出量柱状图.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图1.2：站点总借出量柱状图（站点编号版）
@@ -185,7 +193,7 @@ plt.ylabel('站点编号')
 for container in ax.containers:
     ax.bar_label(container, fmt='%d', padding=3)
 plt.tight_layout()
-plt.savefig('问题1_总体_站点总借出量柱状图（站点编号版）.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_总体_站点总借出量柱状图（站点编号版）.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图2.1：各站点每小时平均借出量热力图
@@ -195,7 +203,7 @@ plt.title('各站点每小时平均借出量热力图')
 plt.xlabel('小时 (0-23)')
 plt.ylabel('站点名称')
 plt.tight_layout()
-plt.savefig('问题1_总体_借出量热力图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_总体_借出量热力图.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图2.2：各站点每小时平均归还量热力图
@@ -205,7 +213,7 @@ plt.title('各站点每小时平均归还量热力图')
 plt.xlabel('小时 (0-23)')
 plt.ylabel('站点名称')
 plt.tight_layout()
-plt.savefig('问题1_总体_归还量热力图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_总体_归还量热力图.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图3：空间散点图
@@ -218,7 +226,7 @@ plt.title('各站点借出量空间分布（点的大小及颜色深浅表示借
 plt.xlabel('经度')
 plt.ylabel('纬度')
 plt.grid(True)
-plt.savefig('问题1_总体_空间散点图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_总体_空间散点图.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图4.1：总借出量Top5站点的每小时平均借出量曲线（这里先不区分工作日/休息日）
@@ -237,7 +245,7 @@ plt.legend(title='站点名称', bbox_to_anchor=(1.05, 1), loc='upper left')  # 
 plt.grid(True, alpha=0.3, linestyle='--')
 plt.xticks(range(0, 24, 2))  # 每2小时显示一个刻度
 plt.tight_layout()
-plt.savefig('问题1_Top5站点_每小时借出量曲线.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_Top5站点_每小时借出量曲线.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图4.2：总借出量Top5站点的每小时平均归还量曲线（这里先不区分工作日/休息日）
@@ -254,7 +262,7 @@ plt.legend(title='站点名称', bbox_to_anchor=(1.05, 1), loc='upper left')  # 
 plt.grid(True, alpha=0.3, linestyle='--')
 plt.xticks(range(0, 24, 2))  # 每2小时显示一个刻度
 plt.tight_layout()
-plt.savefig('问题1_Top5站点_每小时归还量曲线.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_Top5站点_每小时归还量曲线.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图4.3：总借出量Bottom5站点的每小时平均借出量曲线（这里先不区分工作日/休息日）
@@ -273,7 +281,7 @@ plt.legend(title='站点名称', bbox_to_anchor=(1.05, 1), loc='upper left')  # 
 plt.grid(True, alpha=0.3, linestyle='--')
 plt.xticks(range(0, 24, 2))  # 每2小时显示一个刻度
 plt.tight_layout()
-plt.savefig('问题1_Bottom5站点_每小时借出量曲线.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_Bottom5站点_每小时借出量曲线.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图4.4：总借出量Bottom5站点的每小时平均归还量曲线（这里先不区分工作日/休息日）
@@ -290,7 +298,7 @@ plt.legend(title='站点名称', bbox_to_anchor=(1.05, 1), loc='upper left')  # 
 plt.grid(True, alpha=0.3, linestyle='--')
 plt.xticks(range(0, 24, 2))  # 每2小时显示一个刻度
 plt.tight_layout()
-plt.savefig('问题1_Bottom5站点_每小时归还量曲线.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_Bottom5站点_每小时归还量曲线.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图5：工作日与休息日借还时段对比图
@@ -312,7 +320,7 @@ plt.xlabel('小时 (0-23)', fontsize=12)
 plt.ylabel('平均车辆数', fontsize=12)
 plt.legend(loc='best')
 plt.grid(True, alpha=0.3)
-plt.savefig('问题1_差异_工作日与休息日借还时段对比图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_差异_工作日与休息日借还时段对比图.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图6: 总量柱状对比
@@ -321,10 +329,10 @@ totals = pd.DataFrame({
     '日类型': ['工作日', '休息日'],
     '总借出量': [weekday_total_b, weekend_total_b]
 })
-sns.barplot(data=totals, x='日类型', y='总借出量', palette='Set2')
+sns.barplot(data=totals, x='日类型', y='总借出量', hue='日类型', palette='Set2', legend=False)
 plt.title('工作日 vs 休息日总借出量对比')
 plt.ylabel('总借出量')
-plt.savefig('问题1_差异_总量柱状图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_差异_总量柱状图.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图7.1: 空间差异散点图（工作日 vs 休息日借出量，点大小=差异）
@@ -349,7 +357,7 @@ plt.title('休息日各站点日均借出量空间分布')
 plt.xlabel('经度')
 
 plt.tight_layout()
-plt.savefig('问题1_差异_空间对比.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_差异_空间对比.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图7.2：空间差异图（合并）
@@ -364,7 +372,7 @@ plt.title('工作日与休息日各站点日均借出量差异空间分布')
 plt.xlabel('经度')
 plt.ylabel('纬度')
 plt.tight_layout()
-plt.savefig('问题1_差异_空间差异图（合并）.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_差异_空间差异图（合并）.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图8: 站点借出量差异热力图（工作日-休息日）
@@ -374,7 +382,7 @@ sns.heatmap(diff_heatmap, cmap='RdBu', center=0,
             annot=True, fmt='.1f', linewidths=0.5)
 plt.title('各站点借出量差异（工作日 - 休息日，正值=工作日更高）')
 plt.xlabel('站点名称')
-plt.savefig('问题1_差异_站点差异热力图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_差异_站点差异热力图.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图9: 站点类型差异柱状图
@@ -385,7 +393,7 @@ plt.title('不同站点类型借出量对比')
 plt.ylabel('平均每小时借出量')
 plt.xticks(rotation=0)
 plt.legend(title='日类型')
-plt.savefig('问题1_差异_站点类型柱状图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_差异_站点类型柱状图.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图10: 净归还量差异时序图
@@ -400,14 +408,14 @@ plt.xlabel('小时')
 plt.ylabel('平均净归还量')
 plt.legend()
 plt.grid(True)
-plt.savefig('问题1_差异_净归还量时序图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_差异_净归还量时序图.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图11: 变异性对比柱状图
 var_df.plot(kind='bar', figsize=(12, 6), color=['salmon', 'lightblue'])
 plt.title('工作日 vs 休息日小时借出量变异性（标准差）')
 plt.ylabel('标准差')
-plt.savefig('问题1_差异_变异性柱状图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_差异_变异性柱状图.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # 图12: 借还平衡差异（借出/归还比例）
@@ -416,5 +424,5 @@ plt.bar(['工作日', '休息日'], [ratio_work, ratio_weekend],
         color=['#FF6B6B', '#4ECDC4'])
 plt.title('借出/归还比例（>1 表示借>还）')
 plt.ylabel('借出量 / 归还量')
-plt.savefig('问题1_差异_借还平衡柱状图.png', dpi=300, bbox_inches='tight')
+plt.savefig(OUTPUT_DIR / '问题1_差异_借还平衡柱状图.png', dpi=300, bbox_inches='tight')
 plt.close()
