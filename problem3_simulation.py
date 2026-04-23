@@ -294,6 +294,8 @@ class StationSimulator:
         total_penalty = 0
         total_fail_borrow = 0
         total_fail_return = 0
+        total_full_station_count = 0  # 满桩发生次数
+        total_empty_station_count = 0  # 空桩发生次数
 
         for t in range(24):
             # 借还过程
@@ -317,6 +319,12 @@ class StationSimulator:
             total_fail_borrow += np.sum(fail_borrow)
             total_fail_return += np.sum(fail_return)
 
+            # 统计满桩和空桩发生次数
+            full_stations = np.sum(self.S >= self.config['capacity'])
+            empty_stations = np.sum(self.S <= self.config['safe_inventory'])
+            total_full_station_count += full_stations
+            total_empty_station_count += empty_stations
+
         # 汇总结果
         results = {
             'total_penalty': total_penalty,
@@ -324,6 +332,8 @@ class StationSimulator:
             'total_cost': total_penalty,
             'total_fail_borrow': total_fail_borrow,
             'total_fail_return': total_fail_return,
+            'total_full_count': total_full_station_count,
+            'total_empty_count': total_empty_station_count,
             'total_demand_out': np.sum(self.D_out),
             'total_demand_in': np.sum(self.D_in),
             'records': self.records
@@ -346,6 +356,8 @@ class StationSimulator:
         total_transport_cost = 0
         total_fail_borrow = 0
         total_fail_return = 0
+        total_full_station_count = 0  # 满桩发生次数
+        total_empty_station_count = 0  # 空桩发生次数
         all_schedules = []
 
         for t in range(24):
@@ -376,6 +388,12 @@ class StationSimulator:
             total_fail_return += np.sum(fail_return)
             all_schedules.extend(schedules)
 
+            # 统计满桩和空桩发生次数
+            full_stations = np.sum(self.S >= self.config['capacity'])
+            empty_stations = np.sum(self.S <= self.config['safe_inventory'])
+            total_full_station_count += full_stations
+            total_empty_station_count += empty_stations
+
         # 统计调度信息
         total_schedule_trips = sum(len(h_sch)
                                    for h_sch in self.records['schedules'])
@@ -392,6 +410,8 @@ class StationSimulator:
             'total_cost': total_penalty + total_transport_cost,
             'total_fail_borrow': total_fail_borrow,
             'total_fail_return': total_fail_return,
+            'total_full_count': total_full_station_count,
+            'total_empty_count': total_empty_station_count,
             'total_demand_out': np.sum(self.D_out),
             'total_demand_in': np.sum(self.D_in),
             'records': self.records,

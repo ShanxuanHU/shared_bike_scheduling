@@ -201,36 +201,28 @@ def main():
 def save_results(results_no, results_with, config):
     """
     保存模拟结果到CSV文件
+    题目要求的5个对比指标：
+    1. 总费用
+    2. 满桩发生次数
+    3. 空桩发生次数
+    4. 用户无法借车的次数
+    5. 用户无法还车的次数
     """
-    # 1. 对比汇总表
-    summary_df = pd.DataFrame({
-        '指标': [
-            '日总费用(元)',
-            '惩罚成本(元)',
-            '运输成本(元)',
-            '借车失败(次)',
-            '还车失败(次)',
-            '用户需求满足率(%)'
-        ],
-        '无调度': [
-            results_no['total_cost'],
-            results_no['total_penalty'],
-            0,
-            results_no['total_fail_borrow'],
-            results_no['total_fail_return'],
-            results_no['success_rate']
-        ],
-        '有调度': [
-            results_with['total_cost'],
-            results_with['total_penalty'],
-            results_with['total_transport_cost'],
-            results_with['total_fail_borrow'],
-            results_with['total_fail_return'],
-            results_with['success_rate']
-        ]
-    })
-    summary_df.to_csv('problem3_comparison_summary.csv',
-                      index=False, encoding='utf-8-sig')
+    # 1. 对比汇总表（仅包括题目要求的指标）
+    # 直接写入 CSV 文件，确保正确的数据类型格式
+    with open('problem3_comparison_summary.csv', 'w', encoding='utf-8-sig') as f:
+        f.write('指标,无调度,有调度\n')
+        f.write(
+            f'总费用(元),{results_no["total_cost"]:.2f},{results_with["total_cost"]:.2f}\n')
+        f.write(
+            f'满桩发生次数(次),{int(results_no["total_full_count"])},{int(results_with["total_full_count"])}\n')
+        f.write(
+            f'空桩发生次数(次),{int(results_no["total_empty_count"])},{int(results_with["total_empty_count"])}\n')
+        f.write(
+            f'用户无法借车(次),{int(results_no["total_fail_borrow"])},{int(results_with["total_fail_borrow"])}\n')
+        f.write(
+            f'用户无法还车(次),{int(results_no["total_fail_return"])},{int(results_with["total_fail_return"])}\n')
+
     print(f"    - 已保存: problem3_comparison_summary.csv")
 
     # 2. 调度方案详情
