@@ -74,7 +74,7 @@ def load_data():
     return stations, param_dict
 
 
-def compute_distance_matrix(stations):
+def compute_distance_matrix(stations, speed):
     """
     计算站点间距离矩阵与调度时间矩阵。
     """
@@ -90,7 +90,7 @@ def compute_distance_matrix(stations):
             lon2, lat2 = stations.iloc[j][["经度", "纬度"]]
             dist = haversine_distance(lon1, lat1, lon2, lat2)
             dist_matrix[i, j] = dist
-            time_matrix[i, j] = int(np.floor(dist + 0.5))
+            time_matrix[i, j] = int(np.floor(dist / speed + 0.5))
 
     return dist_matrix, time_matrix
 
@@ -163,7 +163,7 @@ def get_config():
     """
     stations, params = load_data()
     speed = float(params.get("调度车速", 40))
-    dist_matrix, time_matrix = compute_distance_matrix(stations)
+    dist_matrix, time_matrix = compute_distance_matrix(stations, speed)
     station_to_idx, idx_to_station = get_station_mapping(stations)
 
     config = {

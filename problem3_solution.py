@@ -5,7 +5,7 @@
 1. 多轮调度 - 每小时内根据容量进行多次调度循环
 2. 未来需求预测 - 考虑未来2-3小时的需求缺口
 3. 距离加权优先级 - priority = deficit_j × surplus_i / distance_ij
-4. 离散时延到站 - 调度在 t 时刻发车，在 t + round(d_ij) 时刻到达
+4. 离散时延到站 - 调度在 t 时刻发车，在 t + round(d_ij / v) 时刻到达
 
 使用的文件：
 - problem3_config.py (配置加载)
@@ -37,7 +37,7 @@ def main():
         print(f"    - 货车最大容量: {config['truck_capacity']} 辆/次")
         print(
             f"    - 调度时间窗: {config['time_window_start']}:00-{config['time_window_end']}:00")
-        print("    - 调度时间: t_ij = round(d_ij)")
+        print("    - 调度时间: t_ij = round(d_ij / v)")
         print(f"    - 满桩惩罚(α): {config['alpha']:.1f} 元/(桩·小时)")
         print(f"    - 空桩惩罚(β): {config['beta']:.1f} 元/(桩·小时)")
         print(
@@ -192,7 +192,7 @@ def main():
 
 4. 离散时延到站
    - 调度车辆在出发时刻立即从源站扣减
-   - 目标站在 arrival_hour = depart_hour + round(distance_ij) 时入库
+   - 目标站在 arrival_hour = depart_hour + round(distance_ij / v) 时入库
    - 不再采用瞬时调度近似
 
 【最终效果】
